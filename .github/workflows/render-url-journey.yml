@@ -1,0 +1,50 @@
+name: Render TechOrbit URL Journey
+
+on:
+  push:
+    branches: [video/url-journey-tanglish-v2]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install neural TTS
+        run: python3 -m pip install --upgrade edge-tts
+      - name: Generate Telugu neural voice
+        working-directory: video-url-journey
+        run: |
+          mkdir -p public out
+          python3 - <<'PY'
+          import asyncio, edge_tts
+          async def main():
+              text=open("voiceover.txt",encoding="utf-8").read()
+              await edge_tts.Communicate(text=text, voice="te-IN-ShrutiNeural", rate="+2%").save("public/voiceover.mp3")
+          asyncio.run(main())
+          PY
+      - name: Generate subtle cinematic music bed
+        working-directory: video-url-journey
+        run: |
+          ffmpeg -y -f lavfi -i "sine=frequency=55:sample_rate=48000" -f lavfi -i "sine=frequency=110:sample_rate=48000" -filter_complex "[0:a]volume=0.07[a];[1:a]volume=0.025[b];[a][b]amix=inputs=2:duration=longest,afade=t=in:st=0:d=8,afade=t=out:st=585:d=15" -t 600 public/bg.mp3
+      - name: Install Remotion project
+        working-directory: video-url-journey
+        run: npm install
+      - name: Typecheck
+        working-directory: video-url-journey
+        run: npm run build
+      - name: Render final MP4
+        working-directory: video-url-journey
+        run: npx remotion render UrlJourney out/TechOrbit_URL_Journey_10min.mp4 --codec=h264 --crf=18
+      - name: Upload final MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechOrbit-URL-Journey-10min
+          path: video-url-journey/out/TechOrbit_URL_Journey_10min.mp4
+          retention-days: 14

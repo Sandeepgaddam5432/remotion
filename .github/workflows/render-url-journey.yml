@@ -3,6 +3,7 @@ name: Render TechOrbit URL Journey
 on:
   push:
     branches: [video/url-journey-tanglish-v2]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,15 +11,28 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install official Remotion Agent Skills
+        run: |
+          npx -y skills@latest add remotion-dev/skills --yes
+
       - name: Install neural TTS
-        run: python3 -m pip install --upgrade edge-tts
-      - name: Generate Telugu neural voice
+        run: |
+          python3 -m pip install --upgrade edge-tts
+
+      - name: Generate neural Telugu voice
         working-directory: video-url-journey
         run: |
           mkdir -p public out
@@ -26,22 +40,43 @@ jobs:
           import asyncio, edge_tts
           async def main():
               text=open("voiceover.txt",encoding="utf-8").read()
-              await edge_tts.Communicate(text=text, voice="te-IN-ShrutiNeural", rate="+2%").save("public/voiceover.mp3")
+              await edge_tts.Communicate(
+                  text=text,
+                  voice="te-IN-ShrutiNeural",
+                  rate="+2%",
+                  volume="+0%"
+              ).save("public/voiceover.mp3")
           asyncio.run(main())
           PY
-      - name: Generate subtle cinematic music bed
+
+      - name: Generate cinematic audio bed
         working-directory: video-url-journey
         run: |
-          ffmpeg -y -f lavfi -i "sine=frequency=55:sample_rate=48000" -f lavfi -i "sine=frequency=110:sample_rate=48000" -filter_complex "[0:a]volume=0.07[a];[1:a]volume=0.025[b];[a][b]amix=inputs=2:duration=longest,afade=t=in:st=0:d=8,afade=t=out:st=585:d=15" -t 600 public/bg.mp3
-      - name: Install Remotion project
+          ffmpeg -y             -f lavfi -i "sine=frequency=55:sample_rate=48000"             -f lavfi -i "sine=frequency=110:sample_rate=48000"             -filter_complex "[0:a]volume=0.07[a];[1:a]volume=0.025[b];[a][b]amix=inputs=2:duration=longest,afade=t=in:st=0:d=8,afade=t=out:st=585:d=15"             -t 600 public/bg.mp3
+
+      - name: Install Remotion dependencies
         working-directory: video-url-journey
         run: npm install
+
+      - name: Ensure Chromium
+        working-directory: video-url-journey
+        run: npx remotion browser ensure
+
       - name: Typecheck
         working-directory: video-url-journey
         run: npm run build
+
       - name: Render final MP4
         working-directory: video-url-journey
-        run: npx remotion render UrlJourney out/TechOrbit_URL_Journey_10min.mp4 --codec=h264 --crf=18
+        run: |
+          npx remotion render UrlJourney out/TechOrbit_URL_Journey_10min.mp4             --codec=h264             --crf=18             --pixel-format=yuv420p             --x264-preset=fast             --concurrency=50%
+
+      - name: Verify MP4
+        working-directory: video-url-journey
+        run: |
+          test -s out/TechOrbit_URL_Journey_10min.mp4
+          ffprobe -v error -show_entries format=duration,size             -of default=noprint_wrappers=1 out/TechOrbit_URL_Journey_10min.mp4
+
       - name: Upload final MP4
         uses: actions/upload-artifact@v4
         with:

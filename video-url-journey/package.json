@@ -1,0 +1,8 @@
+{
+  "name":"techorbit-url-journey",
+  "version":"1.0.0",
+  "private":true,
+  "scripts":{"build":"tsc --noEmit","render":"remotion render UrlJourney out/TechOrbit_URL_Journey_10min.mp4"},
+  "dependencies":{"@remotion/cli":"latest","@remotion/media":"latest","remotion":"latest","react":"latest","react-dom":"latest"},
+  "devDependencies":{"@types/react":"latest","@types/react-dom":"latest","typescript":"latest"}
+}

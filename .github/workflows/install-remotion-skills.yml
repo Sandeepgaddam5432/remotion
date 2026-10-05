@@ -1,0 +1,45 @@
+name: Install Remotion Agent Skills
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [video/url-journey-tanglish-v2]
+
+permissions:
+  contents: write
+
+jobs:
+  install-remotion-skills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Download official Remotion Agent Skills
+        run: |
+          npx -y skills@latest add remotion-dev/skills --yes
+
+      - name: Verify installed skills
+        run: |
+          test -d .agents/skills || test -d .claude/skills
+          find .agents/skills .claude/skills -maxdepth 2 -name SKILL.md -print 2>/dev/null | sort || true
+
+      - name: Commit skills into repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .agents/skills .claude/skills 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Remotion skills already up to date."
+          else
+            git commit -m "chore: install official Remotion agent skills"
+            git push
+          fi
